@@ -115,20 +115,20 @@ void loop() {
   unsigned long actualTimestamp;
   int actualSignal;
 
-  int oldSignal = L;
+  int oldSignal = LOW;
   unsigned long lastRisingEdge = 0;
 
   ///// todo: ragiona se è necessario renderli long
   unsigned long tOn = 0;
   unsigned long period = 0;
-  bool TOnValid = false;
+  bool tOnValid = false;
   bool periodValid = false;
 
   while (1) {
 
     /*Acquisisco il tempo corrente (in us) e lo stato corrente dell'ingresso                        */
     /*A seconda dello stato della FSM effettuo una delle seguenti operazioni:                       */
-    actualTimeStamp = millis() * HUNDRED;  // abbiamo scelto di ottenere il timestamp in millisecondi perchè ha una granularità sufficiente e permette di avere un'operatività più lunga
+    actualTimestamp = millis() * HUNDRED;  // abbiamo scelto di ottenere il timestamp in millisecondi perchè ha una granularità sufficiente e permette di avere un'operatività più lunga
     actualSignal = digitalRead(INPUT_PIN);
 
     /*UNCOUPLED:  Se lo stato corrente dell'ingresso non è cambiato rispetto al precedente non      */
@@ -145,16 +145,16 @@ void loop() {
       if (actualSignal != oldSignal) {
 
         // falling edge
-        if (actualSignal == L) {
+        if (actualSignal == LOW) {
           tOn = actualTimestamp - lastRisingEdge;
           if (tOnMin < tOn && tOn < tOnMax)
-            TOnValid = true;
+            tOnValid = true;
           else
-            TOnValid = false;
+            tOnValid = false;
         }
         // rising edge
         else {
-          period = actualTimestamp - lasRisingEdge;
+          period = actualTimestamp - lastRisingEdge;
           if (periodMin < period && period < periodMax) {
             periodValid = true;
             if (tOnValid)
@@ -180,18 +180,33 @@ void loop() {
     /*            altrimenti ho avuto un TON invalido e torno nello stato UNCOUPLED. Infine, se ho  */
     /*            avuto un rising edge, aggiorno il tempo dell'ultimo rising edge                   */
     else if (state == COUPLING) {
+      // se rimangono uguali
       if (actualSignal == oldSignal) {
-        // chiedi se si deve dividere i casi
-        if ((actualSignal == HIGH && (tOnMin > tOn || tOn > tOnMax)) || (actualSignal == LOW && (periodMin > period || period > periodMax))) {
-          tOnValid = false;
-          state = UNCOUPLED;
+        // check pw
+        if(actualSignal == HIGH){
+          tOn = actualTimestamp - lastRisingEdge;
+          if(tOn > tOnMax){
+            tOnValid = false;
+            state = UNCOUPLED;
+          }
         }
-      } else {
+        // check period
+        else{
+          period = actualTimestamp - lastRisingEdge;
+          if(period > periodMax){
+            tOnValid = false;
+            state = UNCOUPLED;
+          }
+        }
+
+      } 
+      // se invece ho una variazione del segnale
+      else {
         if (actualSignal == LOW) {
           tOn = actualTimestamp - lastRisingEdge;
           if (tOnMin > tOn || tOn > tOnMax) {
             tOnValid = false;
-            state = UNCOUPLED
+            state = UNCOUPLED;
           }
         } else {
           period = actualTimestamp - lastRisingEdge;
@@ -221,9 +236,48 @@ void loop() {
     /*            torno nello stato UNCOUPLED e spengo l'uscita. Infine, se ho avuto un rising      */
     /*            edge, aggiorno il tempo dell'ultimo rising edge                                   */
     else {
-      if () {
-
-      } else {
+      // se non ho variazioni nel segnale
+      if (actualSignal == oldSignal) {
+        // se è alto
+        if(actualSignal == HIGH){
+          tOn = actualTimestamp - lastRisingEdge;
+          if(tOn > tOnMax){
+            tOnValid = false;
+            state = UNCOUPLED;
+            digitalWrite(OUTPUT_PIN, LOW);
+          }
+        }
+        // se è basso
+        else{
+          period = actualTimestamp - lastRisingEdge;
+          if(period > periodMax){
+            tOnValid = false;
+            state = UNCOUPLED;
+            digitalWrite(OUTPUT_PIN, LOW);
+          }
+        }
+      }
+      // se ho una variazione del segnale
+      else{
+        // falling edge
+        if(actualSignal == LOW){
+          tOn = actualTimestamp - lastRisingEdge;
+          if(tOnMin > tOn || tOn > tOnMax){
+            tOnValid = false;
+            state = UNCOUPLED;
+            digitalWrite(OUTPUT_PIN, LOW);
+          }
+        }
+        // rising edge
+        else{
+          period = actualTimestamp - lastRisingEdge;
+          if(periodMin > period || period > periodMax){
+            tOnValid = false;
+            state = UNCOUPLED;
+            digitalWrite(OUTPUT_PIN, LOW);
+          }
+          lastRisingEdge = actualTimestamp;
+        }
       }
     }
   }
