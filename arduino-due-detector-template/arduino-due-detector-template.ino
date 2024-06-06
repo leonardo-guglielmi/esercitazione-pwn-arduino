@@ -130,11 +130,11 @@ void loop() {
     actualTimestamp = micros();  // abbiamo scelto di ottenere il timestamp in millisecondi perchè ha una granularità sufficiente e permette di avere un'operatività più lunga
     actualSignal = digitalRead(INPUT_PIN);
 
-
-    SerialUSB.println("state: " + state);
-    SerialUSB.println("actualSignal: " + actualSignal);
-    SerialUSB.println("oldSignal: " + oldSignal);
-    SerialUSB.println("lastRisingEdge: " + lastRisingEdge);
+    SerialUSB.println("-----------------------");
+    SerialUSB.println("state: " + String(state));
+    SerialUSB.println("actualSignal: " + String(actualSignal));
+    SerialUSB.println("oldSignal: " + String(oldSignal));
+    SerialUSB.println("lastRisingEdge: " + String(lastRisingEdge));
 
     /*UNCOUPLED:  Se lo stato corrente dell'ingresso non è cambiato rispetto al precedente non      */
     /*            devo fare nulla                                                                   */
@@ -164,9 +164,14 @@ void loop() {
             if (tOnValid)
               state = COUPLING;
           }
-
-          oldSignal = actualSignal;
+          else{
+            tOnValid = false;
+          }
+          lastRisingEdge = actualTimestamp;
         }
+
+        oldSignal = actualSignal;
+
       }
     }
     /*COUPLING:   Se lo stato corrente dell'ingresso non è cambiato rispetto al precedente devo     */
@@ -368,15 +373,15 @@ static void configure(void) {
   /*NOTA: la frequenza è in mHz (quindi andrebbe divisa per 1000), il periodo lo vogliamo in microsecondi (quindi lo vorremmo moltiplicare per 10^6)*/
   /*Per minimizzare l'errore numerico possiamo fare:*/
   /*    T(us) = 10^9(ns) / f(mHz)     */
-  periodMax = NSEC_IN_SEC / ( frequency - TOLERANCE_FREQUENCY); // equiv. alla formula f * (f - tollerance) /f 
-  periodMin = NSEC_IN_SEC / ( frequency + TOLERANCE_FREQUENCY));
+  periodMax = NSEC_IN_SEC / ( frequency * ( THOUSAND - TOLERANCE_FREQUENCY ) / THOUSAND);
+  periodMin = NSEC_IN_SEC / ( frequency * ( THOUSAND + TOLERANCE_FREQUENCY ) / THOUSAND);
   
 
   /*Calcoliamo la larghezza d'impulso minima e massima*/
   /*TON_min = T_min * d_min / 100*/
   /*TON_max = T_max * d_max / 100*/
-  tOnMin = periodMin * ( dutyCycle - TOLERENCE_DUTY ) / HUNDRED;
-  tOnMax = periodMax * ( dutyCucle + TOLERANCE_DUTY ) / HUNDRED;
+  tOnMin = periodMin * ( dutyCycle - TOLERANCE_DUTY ) / HUNDRED;
+  tOnMax = periodMax * ( dutyCycle + TOLERANCE_DUTY ) / HUNDRED;
 
   /*Configuriamo il piedino INPUT_PIN come ingresso e il piedino OUTPUT_PIN come uscita*/
   pinMode(INPUT_PIN, INPUT);
